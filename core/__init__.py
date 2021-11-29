@@ -10,14 +10,14 @@ import os
 
 from flask_socketio import SocketIO
 
-FlaskSQLAlchemy = None
-if os.environ.get('FLASK_SQLALCHEMY', False):
-    try:
-        from flask_sqlalchemy import SQLAlchemy as FlaskSQLAlchemy
-    except ImportError:
-        FlaskSQLAlchemy = None
+# FlaskSQLAlchemy = None
+# if os.environ.get('FLASK_SQLALCHEMY', False):
+#     try:
+#         from flask_sqlalchemy import SQLAlchemy as FlaskSQLAlchemy
+#     except ImportError:
+#         FlaskSQLAlchemy = None
 
-
+from flask_sqlalchemy import SQLAlchemy as FlaskSQLAlchemy
 db = FlaskSQLAlchemy()
 redis_store = FlaskRedis()
 api = Api()
@@ -25,11 +25,27 @@ data_cleaner = DataCleaner()
 socketio = SocketIO()
 
 
-def create_app(restful_routes, name=__name__):
+def create_app(restful_routes, name=__name__, test_config=None):
 
     app = Flask(name)
     app.config['SECRET_KEY'] = 'asasfadcsavsvrqca'
-    app.config.from_pyfile('config.py')
+    app.config.from_pyfile('config.py', silent=True)
+    if test_config:
+        # load the test config if passed in
+        app.config.update(test_config)
+    else:
+        app.config.from_pyfile('config.py')
+
+        socketio.init_app(
+            app,
+            logger=app.config.get('SOCKETIO_DEBUG', False),
+            engineio_logger=app.config.get('SOCKETIO_DEBUG', False),
+            cors_allowed_origins="*",
+            message_queue=app.config['SOCKETIO_MESSAGE_QUEUE'],
+            channel=app.config.get('REDIS_SOCKETIO_NAME'),
+            async_mode='eventlet',
+        )
+
     if db:
         db.init_app(app)
 
@@ -68,15 +84,15 @@ def create_app(restful_routes, name=__name__):
 
     api.init_app(app)
 
-    socketio.init_app(
-        app,
-        logger=app.config.get('SOCKETIO_DEBUG', False),
-        engineio_logger=app.config.get('SOCKETIO_DEBUG', False),
-        cors_allowed_origins="*",
-        message_queue=app.config['SOCKETIO_MESSAGE_QUEUE'],
-        channel=app.config.get('REDIS_SOCKETIO_NAME'),
-        async_mode='eventlet',
-    )
+    # socketio.init_app(
+    #     app,
+    #     logger=app.config.get('SOCKETIO_DEBUG', False),
+    #     engineio_logger=app.config.get('SOCKETIO_DEBUG', False),
+    #     cors_allowed_origins="*",
+    #     message_queue=app.config['SOCKETIO_MESSAGE_QUEUE'],
+    #     channel=app.config.get('REDIS_SOCKETIO_NAME'),
+    #     async_mode='eventlet',
+    # )
 
     @app.before_request
     def before_request():
